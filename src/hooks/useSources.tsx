@@ -166,6 +166,18 @@ export const useSources = (notebookId?: string) => {
               });
             } catch (error) {
               console.error('Failed to generate notebook content:', error);
+              
+              // Show user-friendly error message
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+              
+              // Check for common configuration issues
+              if (errorMessage.includes('webhook') && errorMessage.includes('not registered')) {
+                console.error('N8N Configuration Error: The required n8n workflow is not active or properly configured. Please ensure your n8n workflows are activated and webhook URLs are correctly set in Supabase Edge Function secrets.');
+              } else if (errorMessage.includes('Web service configuration missing')) {
+                console.error('Environment Configuration Error: Required environment variables (NOTEBOOK_GENERATION_URL, NOTEBOOK_GENERATION_AUTH) are missing from Supabase Edge Function secrets.');
+              } else if (errorMessage.includes('Failed to generate content from web service')) {
+                console.error('N8N Service Error: The n8n workflow for generating notebook content is not responding correctly. Please check that your n8n instance is running and the workflow is active.');
+              }
             }
           } else {
             console.log('Source not ready for generation yet - missing required data');
@@ -220,6 +232,18 @@ export const useSources = (notebookId?: string) => {
               });
             } catch (error) {
               console.error('Failed to generate notebook content:', error);
+              
+              // Show user-friendly error message
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+              
+              // Check for common configuration issues
+              if (errorMessage.includes('webhook') && errorMessage.includes('not registered')) {
+                console.error('N8N Configuration Error: The required n8n workflow is not active or properly configured. Please ensure your n8n workflows are activated and webhook URLs are correctly set in Supabase Edge Function secrets.');
+              } else if (errorMessage.includes('Web service configuration missing')) {
+                console.error('Environment Configuration Error: Required environment variables (NOTEBOOK_GENERATION_URL, NOTEBOOK_GENERATION_AUTH) are missing from Supabase Edge Function secrets.');
+              } else if (errorMessage.includes('Failed to generate content from web service')) {
+                console.error('N8N Service Error: The n8n workflow for generating notebook content is not responding correctly. Please check that your n8n instance is running and the workflow is active.');
+              }
             }
           }
         }

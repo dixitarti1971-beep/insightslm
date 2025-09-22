@@ -33,9 +33,14 @@ serve(async (req) => {
         hasUrl: !!webServiceUrl,
         hasAuth: !!authHeader
       })
+      console.error('Configuration Error: Required environment variables missing. Please add NOTEBOOK_GENERATION_URL and NOTEBOOK_GENERATION_AUTH to your Supabase Edge Function secrets.')
       
       return new Response(
-        JSON.stringify({ error: 'Web service configuration missing' }),
+        JSON.stringify({ 
+          error: 'Web service configuration missing',
+          details: 'Required environment variables NOTEBOOK_GENERATION_URL and/or NOTEBOOK_GENERATION_AUTH are missing from Supabase Edge Function secrets.',
+          configurationHelp: 'Please add these secrets in your Supabase project settings under Edge Functions > Secrets. Refer to README.md setup instructions, step 5.'
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -88,9 +93,20 @@ serve(async (req) => {
     })
 
     if (!response.ok) {
-      console.error('Web service error:', response.status, response.statusText)
+      console.error('N8N Web Service Error:', response.status, response.statusText)
       const errorText = await response.text();
-      console.error('Error response:', errorText);
+      console.error('N8N Error Response:', errorText);
+      
+      // Parse the error to provide better feedback
+      let configurationHelp = '';
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.message && errorJson.message.includes('not registered')) {
+          configurationHelp = 'The n8n workflow webhook is not active. Please activate the "InsightsLM - Generate Notebook Details" workflow in your n8n instance by toggling the Active switch in the top-right corner of the workflow editor.';
+        }
+      } catch (e) {
+        configurationHelp = 'Please ensure your n8n workflows are active and properly configured. Check that the NOTEBOOK_GENERATION_URL points to an active n8n workflow webhook.';
+      }
       
       // Update status to failed
       await supabaseClient
@@ -99,7 +115,11 @@ serve(async (req) => {
         .eq('id', notebookId)
 
       return new Response(
-        JSON.stringify({ error: 'Failed to generate content from web service' }),
+        JSON.stringify({ 
+          error: 'Failed to generate content from web service',
+          details: errorText,
+          configurationHelp: configurationHelp
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

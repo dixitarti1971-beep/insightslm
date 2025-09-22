@@ -29,7 +29,7 @@ serve(async (req) => {
     const authHeader = Deno.env.get('NOTEBOOK_GENERATION_AUTH')
 
     if (!webhookUrl) {
-      console.error('Missing DOCUMENT_PROCESSING_WEBHOOK_URL environment variable')
+      console.error('Configuration Error: Missing DOCUMENT_PROCESSING_WEBHOOK_URL environment variable. Please add this secret in your Supabase project settings under Edge Functions > Secrets.')
       
       // Initialize Supabase client to update status
       const supabaseClient = createClient(
@@ -44,7 +44,11 @@ serve(async (req) => {
         .eq('id', sourceId)
 
       return new Response(
-        JSON.stringify({ error: 'Document processing webhook URL not configured' }),
+        JSON.stringify({ 
+          error: 'Document processing webhook URL not configured',
+          details: 'The DOCUMENT_PROCESSING_WEBHOOK_URL environment variable is missing. Please add it to your Supabase Edge Function secrets with the URL of your active n8n workflow webhook.',
+          configurationHelp: 'Refer to the README.md setup instructions, step 5: Add N8N Webhooks to Supabase Secrets'
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -82,7 +86,20 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Webhook call failed:', response.status, errorText);
+      console.error('N8N Webhook Error:', response.status, errorText);
+      
+      // Parse the error to provide better feedback
+      let errorDetails = errorText;
+      let configurationHelp = '';
+      
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.message && errorJson.message.includes('not registered')) {
+          configurationHelp = 'The n8n workflow webhook is not active. Please activate the "InsightsLM - Upsert to Vector Store" workflow in your n8n instance by toggling the Active switch in the top-right corner of the workflow editor.';
+        }
+      } catch (e) {
+        // Error text is not JSON, use as-is
+      }
       
       // Initialize Supabase client to update status
       const supabaseClient = createClient(
@@ -97,7 +114,11 @@ serve(async (req) => {
         .eq('id', sourceId)
 
       return new Response(
-        JSON.stringify({ error: 'Document processing failed', details: errorText }),
+        JSON.stringify({ 
+          error: 'Document processing failed', 
+          details: errorDetails,
+          configurationHelp: configurationHelp || 'Please ensure your n8n workflows are active and properly configured. Refer to the README.md setup instructions.'
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
